@@ -1,72 +1,84 @@
-import sys
-import cv2
-import numpy as np
-from PyQt5.QtWidgets import QApplication, QLabel, QSlider, QVBoxLayout, QWidget
-from PyQt5.QtCore import Qt, QTimer
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
+40x40_pach_swich
+------
 
-class BrightnessPlot(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("リアルタイム明るさ波形")
-        self.resize(800, 600)
+Blackmagic Videohub40x40を使用するアプリです。
+基本的にはシステム図を作成する際に作るパッチリストのエクセルファイルとセットで使用しますが、
+アプリ単体でも使用出来ます。
+アプリを使用する前に使用するVideohub40x40とpcのIP addressの設定を済ませください。
 
-        self.brightness_data = [0] * 400
-        self.offset = 0
+まずエクセルファイルですが、
+inputlistの各chに入力するソース名を記入してください。
+outputの各chに出力先のch名を記入してください。
+outputの各chにパッチしたいinputを入力してください。
+その際input名と番号をコピペして使用してください。
+（手打ちするとinput番号を間違える可能性があります）
+またoutputの40chはモニタ用に使用します。
+IP address欄には接続するVideohub40x40のIPadressを記入してください。
+公演名と日程は任意で入力してください。
+（アプリに反映されますが、Videohub40x40には影響ありません）
+エクセルが完成すれば任意の場所に保存してください。
 
-        self.figure = Figure()
-        self.canvas = FigureCanvas(self.figure)
-        self.ax = self.figure.add_subplot(111)
-        self.line, = self.ax.plot(self.brightness_data, lw=2)
-        self.ax.axvline(x=len(self.brightness_data) // 2, color='r', linestyle='--')  # センターマーカー
-        self.ax.set_ylim(0, 255)
-        self.ax.set_xlim(0, len(self.brightness_data))
+アプリを立ち上げ、
+まずSelect Folderボタンを押してください。
+任意のフォルダが選択できるので先ほど作成したエクセルファイルのあるフォルダを選択してください。
+Select Folderボタンの下のボックスにエクセルファイルが表示されます。
+エクセルファイルをダブルクリックすればエクセルの内容が反映されます。
 
-        self.slider = QSlider(Qt.Horizontal)
-        self.slider.setMinimum(-200)
-        self.slider.setMaximum(200)
-        self.slider.setValue(0)
-        self.slider.valueChanged.connect(self.update_offset)
+pachボタンを押すと接続されたVideohub40x40に内容が反映されます。
+その際エクセルファイルと同じフォルダに日付の名前のテキストファイルが生成されます。そのテキストファイルをBlackmagicのvideo setupアプリで読み込めば、Videohub40x40に名前が反映されます。
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.canvas)
-        layout.addWidget(QLabel("波形オフセット"))
-        layout.addWidget(self.slider)
-        self.setLayout(layout)
+アプリ下にあるswitchingボタンをクリックしてONにするとモニ切りが出来るようになります。
+モニ切り機能はoutput40chの簡易switchです。
+キーボードの1~0がinput1~10,
+q~pがinput11~20,
+a~;がinput21~30,
+z~/がinput31~40,
+に対応してます。
+（キーボードの1~0を斜め下に降りていくと10~,20~,30~に対応しています。
+）
+-------------
+アプリ機能
 
-        self.cap = cv2.VideoCapture(0)
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_plot)
-        self.timer.start(30)
+IP address
+使用するVideohub40x40のIP addressを入力してください。
+モニ切りを使用する祭はこのIPaddressを参照します。
+エクセルファイルから反映されます。
 
-    def update_offset(self, value):
-        self.offset = value
+ノードを接続
+基本的には使用しません。
+（削除予定）
 
-    def update_plot(self):
-        ret, frame = self.cap.read()
-        if not ret:
-            return
+export
+アプリで作成したパッチリストをエクセルファイルにして書き出します。
+アプリ単体で使用した際や、読み込むエクセルファイルのひな形が手元にない場合はexportすればエクセルファイルが書き出されます。
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        h, w = gray.shape
-        center_y, center_x = h // 2, w // 2
-        roi = gray[center_y-2:center_y+3, center_x-2:center_x+3]
-        avg_brightness = int(np.mean(roi))
+Import
+読み込みたいエクセルファイルを読み込む際に使用します。
+ですが、フォルダ内のエクセルファイルをダブルクリックすれば読み込みますので、
+基本的には使用しません。
+（削除予定）
 
-        self.brightness_data.append(avg_brightness)
-        self.brightness_data.pop(0)
+Reset
+アプリを開いた状態に戻します。
 
-        shifted_data = np.roll(self.brightness_data, self.offset)
-        self.line.set_ydata(shifted_data)
-        self.canvas.draw()
+Select Folder
+使用するエクセルファイルのあるフォルダを選択します。
+その下のボックスにエクセルファイルが表示されます。
+（エクセルファイルは複数あっても大丈夫です。Videohub40x40を複数使用する際は、台数分のエクセルファイルを作成してください。）
 
-    def closeEvent(self, event):
-        self.cap.release()
-        event.accept()
+Switching
+ONの状態でoutput40chのinputを切り替えていきます。
+モニ切りに使用してください。
+ONの状態のままだとキーボードがswitchingに使用されるために、テキストの入力に使えなくなります。文字を入力する際にはOFFにしてください。
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = BrightnessPlot()
-    window.show()
-    sys.exit(app.exec_())
+-------------
+緑のinputボックスと赤のoutputボックスの名前は任意で変更できます。
+（エクセルファイルが反映されます。）
+アプリ単体で使用する際は直接記入してください。
+
+inputボックスとoutputボックスのグレーの丸い部分を繋ぎたい順にクリックするとノードがつながります。ノードがつながっている状態がパッチに反映されます。
+ノードはshiftを押しながらクリックするを解除されます。
+ノードがつながった状態でinputボックス,outputボックス,ノードのどれかをクリックするとつながっているノードの色が変わります。
+何がパッチされているかを確認する際に使用してください。
+
+グレーのボックスには現在のパッチされている内容が反映されます。 
